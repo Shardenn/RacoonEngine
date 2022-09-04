@@ -22,6 +22,8 @@ namespace Racoon {
 	private:
 		void Clear(SwapChain*, ID3D12GraphicsCommandList2*);
 
+		uint32_t CheckForMSAAQualitySupport();
+
 		D3D12_VIEWPORT m_Viewport;
 		D3D12_RECT m_RectScissor;
 
@@ -30,8 +32,13 @@ namespace Racoon {
 		CommandListRing m_CommandListRing;
 		ResourceViewHeaps m_ResourceViewHeaps;
 
-		//Texture m_RenderTarget;
-		//RTV m_RenderTargetRTV;
+		std::unique_ptr<Fence> m_pFence;
+		uint32_t m_RtvDescriptorSize,
+			m_DsvDescriptorSize,
+			m_CbvDescriptorSize,
+			m_SamplerDescriptorSize;
+
+		uint32_t m_4xMsaasQuality;
 	};
 
 }
