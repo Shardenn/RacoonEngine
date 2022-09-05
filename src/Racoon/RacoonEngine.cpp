@@ -35,9 +35,20 @@ void Racoon::RacoonEngine::OnDestroy()
     m_Renderer->OnDestroy();
 }
 
+void Racoon::RacoonEngine::OnUpdate()
+{
+    m_Timer.Tick();
+    if (!m_IsPaused)
+    {
+        // update animation
+        // update rendering performance monitor
+    }
+}
+
 void Racoon::RacoonEngine::OnRender()
 {
     BeginFrame();
+    OnUpdate();
     m_Renderer->OnRender(&m_swapChain);
     EndFrame();
 }

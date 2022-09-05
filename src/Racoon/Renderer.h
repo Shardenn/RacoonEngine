@@ -32,7 +32,7 @@ namespace Racoon {
 		CommandListRing m_CommandListRing;
 		ResourceViewHeaps m_ResourceViewHeaps;
 
-		std::unique_ptr<Fence> m_pFence;
+		Fence m_pFence;
 		uint32_t m_RtvDescriptorSize,
 			m_DsvDescriptorSize,
 			m_CbvDescriptorSize,

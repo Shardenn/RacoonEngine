@@ -23,9 +23,7 @@ void Renderer::OnCreate(Device* pDevice, SwapChain* pSwapChain)
         m_RtvDescriptorSize,
         m_SamplerDescriptorSize);
 
-    m_pFence.reset(new Fence());
-    m_pFence->OnCreate(m_pDevice, "Main_Fence");
-
+    m_pFence.OnCreate(m_pDevice, "Main_Fence");
     m_4xMsaasQuality = CheckForMSAAQualitySupport();
 }
 
@@ -33,6 +31,7 @@ void Renderer::OnRender(SwapChain* pSwapChain)
 {
     m_CommandListRing.OnBeginFrame();
     ID3D12GraphicsCommandList2* CmdList = m_CommandListRing.GetNewCommandList();
+    SetViewportAndScissor(CmdList, 0, 0, 900, 500);
     Clear(pSwapChain, CmdList);
 
     const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(pSwapChain->GetCurrentBackBufferResource(),
@@ -78,6 +77,6 @@ void Renderer::OnDestroy()
 {
     m_ResourceViewHeaps.OnDestroy();
     m_CommandListRing.OnDestroy();
-    m_pFence->OnDestroy();
+    m_pFence.OnDestroy();
 }
 }

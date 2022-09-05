@@ -3,6 +3,7 @@
 #include "base/FrameworkWindows.h"
 
 #include "Renderer.h"
+#include "GameTimer.h"
 
 #include <memory>
 
@@ -22,8 +23,12 @@ namespace Racoon {
 		virtual void OnResize(bool resizeRender) override;
 		virtual void OnUpdateDisplay() override;
 
+		void OnUpdate();
 	private:
 		std::unique_ptr<Renderer> m_Renderer;
+		GameTimer m_Timer;
+
+		bool m_IsPaused{ false };
 	};
 
 }
