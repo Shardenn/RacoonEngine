@@ -18,12 +18,14 @@ void Racoon::RacoonEngine::OnCreate()
     InitDirectXCompiler();
     CAULDRON_DX12::CreateShaderCache();
     ImGUI_Init((void*)m_windowHwnd);
-
+    // todo add simple UI with delta time stats
     OnResize(true);
     OnUpdateDisplay();
 
     m_Renderer.reset(new Renderer());
     m_Renderer->OnCreate(&m_device, &m_swapChain);
+
+    m_Timer.Reset();
 }
 
 void Racoon::RacoonEngine::OnDestroy()
@@ -40,7 +42,7 @@ void Racoon::RacoonEngine::OnUpdate()
     m_Timer.Tick();
     if (!m_IsPaused)
     {
-        // update animation
+        // update scene
         // update rendering performance monitor
     }
 }
