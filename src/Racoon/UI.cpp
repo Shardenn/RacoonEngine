@@ -21,17 +21,21 @@ void RacoonEngine::BuildUI()
         ImGui::Begin("Racoon Engine", &m_UIState.m_bShowUI);
         if (m_UIState.m_bShowMilliseconds)
         {
-            ImGui::CollapsingHeader("Timer", ImGuiTreeNodeFlags_DefaultOpen);
-            ImGui::Text("Delta time: %.3f", m_Timer.DeltaTime());
-            ImGui::Text("Total time:: %.3f", m_Timer.TotalTime());
+            if (ImGui::CollapsingHeader("Timer", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Text("Delta time: %.3f", m_Timer.DeltaTime());
+                ImGui::Text("Total time:: %.3f", m_Timer.TotalTime());
+            }
         }
         ImGui::Spacing();
         ImGui::Spacing();
         if (m_UIState.m_bShowSystemInfo)
         {
-            ImGui::CollapsingHeader("System Info", ImGuiTreeNodeFlags_DefaultOpen);
-            ImGui::Text("GPU: %s", m_systemInfo.mGPUName.c_str());
-            ImGui::Text("CPU: %s", m_systemInfo.mCPUName.c_str());
+            if (ImGui::CollapsingHeader("System Info", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Text("GPU: %s", m_systemInfo.mGPUName.c_str());
+                ImGui::Text("CPU: %s", m_systemInfo.mCPUName.c_str());
+            }
         }
         ImGui::End();
     }
