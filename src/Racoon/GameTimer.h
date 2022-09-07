@@ -8,7 +8,6 @@ class GameTimer
 public:
     GameTimer();
 
-    float GameTime() const; // seconds
     float DeltaTime() const; // seconds
     float TotalTime() const; // total time elapsed since timer reset
 

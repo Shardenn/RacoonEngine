@@ -22,6 +22,8 @@ namespace Racoon {
 	private:
 		void Clear(SwapChain*, ID3D12GraphicsCommandList2*);
 
+		ImGUI m_ImGUIHelper;
+
 		uint32_t CheckForMSAAQualitySupport();
 
 		D3D12_VIEWPORT m_Viewport;
@@ -31,6 +33,8 @@ namespace Racoon {
 		SwapChain* m_pSwapChain;
 		CommandListRing m_CommandListRing;
 		ResourceViewHeaps m_ResourceViewHeaps;
+		UploadHeap m_UploadHeap;
+		DynamicBufferRing m_ConstantBufferRing;
 
 		Fence m_pFence;
 		uint32_t m_RtvDescriptorSize,

@@ -1,9 +1,12 @@
 #pragma once
 
+#include "stdafx.h"
+
 #include "base/FrameworkWindows.h"
 
 #include "Renderer.h"
 #include "GameTimer.h"
+#include "UI.h"
 
 #include <memory>
 
@@ -22,11 +25,13 @@ namespace Racoon {
 		virtual bool OnEvent(MSG msg) override;
 		virtual void OnResize(bool resizeRender) override;
 		virtual void OnUpdateDisplay() override;
-
 		void OnUpdate();
+		
+		void BuildUI();
 	private:
 		std::unique_ptr<Renderer> m_Renderer;
 		GameTimer m_Timer;
+		UIState m_UIState;
 
 		bool m_IsPaused{ false };
 	};

@@ -22,17 +22,28 @@ void Renderer::OnCreate(Device* pDevice, SwapChain* pSwapChain)
         m_DsvDescriptorSize,
         m_RtvDescriptorSize,
         m_SamplerDescriptorSize);
+    const uint32_t uploadHeapMemSize = 1000 * 1024 * 1024;
+    m_UploadHeap.OnCreate(pDevice, uploadHeapMemSize);
+    const uint32_t constantBufferMemSize = 200 * 1024 * 1024;
+    m_ConstantBufferRing.OnCreate(pDevice, BACKBUFFER_COUNT, constantBufferMemSize, &m_ResourceViewHeaps);
 
     m_pFence.OnCreate(m_pDevice, "Main_Fence");
     m_4xMsaasQuality = CheckForMSAAQualitySupport();
+
+    m_ImGUIHelper.OnCreate(pDevice, &m_UploadHeap, &m_ResourceViewHeaps, &m_ConstantBufferRing, pSwapChain->GetFormat());
 }
 
 void Renderer::OnRender(SwapChain* pSwapChain)
 {
     m_CommandListRing.OnBeginFrame();
+    m_ConstantBufferRing.OnBeginFrame();
     ID3D12GraphicsCommandList2* CmdList = m_CommandListRing.GetNewCommandList();
-    SetViewportAndScissor(CmdList, 0, 0, 900, 500);
+    
     Clear(pSwapChain, CmdList);
+    
+    SetViewportAndScissor(CmdList, 0, 0, 900, 500);
+    CmdList->OMSetRenderTargets(1, pSwapChain->GetCurrentBackBufferRTV(), true, nullptr);
+    m_ImGUIHelper.Draw(CmdList);
 
     const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(pSwapChain->GetCurrentBackBufferResource(),
         D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -52,8 +63,6 @@ void Renderer::Clear(SwapChain* pSwapChain, ID3D12GraphicsCommandList2* CmdList)
 
     float clearColor[]{ 0.1f, 0.4f, 1.0f, 1.0f };
     CmdList->ClearRenderTargetView(*pSwapChain->GetCurrentBackBufferRTV(), clearColor, 0, nullptr);
-
-    SetViewportAndScissor(CmdList, 0, 0, 1920, 1080);
 }
 
 uint32_t Renderer::CheckForMSAAQualitySupport()
@@ -75,6 +84,9 @@ uint32_t Renderer::CheckForMSAAQualitySupport()
 
 void Renderer::OnDestroy()
 {
+    m_ImGUIHelper.OnDestroy();
+    m_ConstantBufferRing.OnDestroy();
+    m_UploadHeap.OnDestroy();
     m_ResourceViewHeaps.OnDestroy();
     m_CommandListRing.OnDestroy();
     m_pFence.OnDestroy();

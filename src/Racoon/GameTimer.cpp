@@ -17,11 +17,6 @@ GameTimer::GameTimer() :
     m_SecondsPerCount = 1.0 / static_cast<double>(countsPerSec);
 }
 
-float GameTimer::GameTime() const
-{
-    return 0.0f;
-}
-
 float GameTimer::DeltaTime() const
 {
     return static_cast<float>(m_DeltaTime);
