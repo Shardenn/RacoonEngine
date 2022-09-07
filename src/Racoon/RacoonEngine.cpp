@@ -45,6 +45,7 @@ void RacoonEngine::OnDestroy()
 void RacoonEngine::OnUpdate()
 {
     m_Timer.Tick();
+
     if (!m_IsPaused)
     {
         // update scene
@@ -69,7 +70,18 @@ void RacoonEngine::OnRender()
 
 bool RacoonEngine::OnEvent(MSG msg)
 {
-    return false;
+    if (ImGUI_WndProcHandler(m_windowHwnd, msg.message, msg.wParam, msg.lParam))
+        return true;
+
+    const WPARAM& KeyPressed = msg.wParam;
+    switch (msg.message)
+    {
+    case WM_KEYUP:
+    case WM_SYSKEYUP:
+        if (KeyPressed == VK_F1) m_UIState.m_bShowUI ^= 1;
+        break;
+    }
+    return true;
 }
 
 void RacoonEngine::OnResize(bool resizeRender)
