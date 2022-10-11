@@ -6,10 +6,13 @@ namespace Racoon {
 
 struct UIState
 {
-    bool m_bShowUI;
-    bool m_bShowFPS;
-    bool m_bShowMilliseconds;
-    bool m_bShowSystemInfo;
+    bool bShowUI;
+    bool bShowFPS;
+    bool bShowMilliseconds;
+    bool bShowSystemInfo;
+
+    float LastMeasuredFPS{ 0 };
+    float MillisecondsPerFrame{ 0 };
 };
 
 }

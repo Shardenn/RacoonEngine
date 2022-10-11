@@ -34,6 +34,7 @@ void RacoonEngine::OnCreate()
 
 void RacoonEngine::OnDestroy()
 {
+    m_device.GPUFlush();
     ImGUI_Shutdown();
 
     CAULDRON_DX12::DestroyShaderCache(&m_device);
@@ -65,6 +66,7 @@ void RacoonEngine::OnRender()
 
     OnUpdate();
     m_Renderer->OnRender(&m_swapChain);
+    CalculateFrameStats();
     EndFrame();
 }
 
@@ -78,7 +80,7 @@ bool RacoonEngine::OnEvent(MSG msg)
     {
     case WM_KEYUP:
     case WM_SYSKEYUP:
-        if (KeyPressed == VK_F1) m_UIState.m_bShowUI ^= 1;
+        if (KeyPressed == VK_F1) m_UIState.bShowUI ^= 1;
         break;
     }
     return true;
@@ -90,6 +92,26 @@ void RacoonEngine::OnResize(bool resizeRender)
 
 void RacoonEngine::OnUpdateDisplay()
 {
+}
+
+void RacoonEngine::CalculateFrameStats()
+{
+    static int FrameCount = 0;
+    static float TimeElapsed = 0;
+
+    ++FrameCount;
+
+    if (m_Timer.TotalTime() - TimeElapsed >= 1.f)
+    {
+        float FPS = (float)FrameCount;
+        float mspf = 1000.f / FPS;
+        
+        m_UIState.LastMeasuredFPS = FPS;
+        m_UIState.MillisecondsPerFrame = mspf;
+
+        FrameCount = 0;
+        TimeElapsed += 1.f;
+    }
 }
 
 }

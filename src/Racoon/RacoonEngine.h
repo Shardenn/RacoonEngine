@@ -28,6 +28,8 @@ namespace Racoon {
 		void OnUpdate();
 		
 		void BuildUI();
+
+		void CalculateFrameStats();
 	private:
 		std::unique_ptr<Renderer> m_Renderer;
 		GameTimer m_Timer;
