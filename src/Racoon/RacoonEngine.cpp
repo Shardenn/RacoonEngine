@@ -29,6 +29,8 @@ void RacoonEngine::OnCreate()
     m_Renderer.reset(new Renderer());
     m_Renderer->OnCreate(&m_device, &m_swapChain);
 
+    m_Camera.LookAt({ 0, 0, 5, 0 }, { 0, 0, 0, 0 });
+
     m_Timer.Reset();
 }
 
@@ -49,9 +51,45 @@ void RacoonEngine::OnUpdate()
 
     if (!m_IsPaused)
     {
+        ImGuiIO& io = ImGui::GetIO();
         // update scene
+        
+        // If GUI wants to use the mouse, then its for GUI, not for scene controls
+        if (io.WantCaptureMouse)
+        {
+            io.MouseDelta.x = 0;
+            io.MouseDelta.y = 0;
+            io.MouseWheel = 0;
+        }
+        UpdateCamera(m_Camera, io);
+        m_Camera.SetProjectionJitter(0.f, 0.f);
         // update rendering performance monitor
     }
+}
+
+void RacoonEngine::UpdateCamera(Camera& cam, const ImGuiIO& io)
+{
+    float yaw = cam.GetYaw();
+    float pitch = cam.GetPitch();
+    float distance = cam.GetDistance();
+
+    // Don't update anything if not touching anything
+    if (!io.MouseWheel && !(io.MouseDown[0] && (io.MouseDelta.x || io.MouseDelta.y)))
+        return;
+
+    if (io.MouseDown[0])
+    {
+        yaw -= io.MouseDelta.x / 100.f;
+        pitch += io.MouseDelta.y / 100.f;
+    }
+
+    distance -= static_cast<float>(io.MouseWheel);
+    distance = std::max<float>(distance, 0.1f);
+
+    cam.UpdateCameraPolar(yaw, pitch,
+        0, 0,
+        //-io.MouseDelta.x / 100.f, io.MouseDelta.y / 100.f,
+        distance);
 }
 
 void RacoonEngine::OnRender()
@@ -65,7 +103,7 @@ void RacoonEngine::OnRender()
     BuildUI();
 
     OnUpdate();
-    m_Renderer->OnRender(&m_swapChain);
+    m_Renderer->OnRender(&m_swapChain, m_Camera);
     CalculateFrameStats();
     EndFrame();
 }
@@ -88,6 +126,7 @@ bool RacoonEngine::OnEvent(MSG msg)
 
 void RacoonEngine::OnResize(bool resizeRender)
 {
+    m_Camera.SetFov(AMD_PI_OVER_4, 1920, 1080, 0.1f, 1000.f);
 }
 
 void RacoonEngine::OnUpdateDisplay()

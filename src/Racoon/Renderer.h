@@ -10,12 +10,15 @@
 #include "base/StaticConstantBufferPool.h"
 #include "base/StaticBufferPool.h"
 
+#include "Misc/Camera.h"
+
 using namespace CAULDRON_DX12;
 
 static const uint8_t BACKBUFFER_COUNT = 2;
 
 namespace Racoon {
 using namespace Microsoft::WRL;
+
 	class Renderer
 	{
 	public:
@@ -27,12 +30,12 @@ using namespace Microsoft::WRL;
 
 		struct PerFrame
 		{
-			//math::Matrix4 mvp;
-			XMFLOAT4X4 mvp;
+			math::Matrix4 mvp;
+			//XMFLOAT4X4 mvp;
 		};
 
 		void OnCreate(Device* pDevice, SwapChain* pSwapChain);
-		void OnRender(SwapChain* pSwapChain);
+		void OnRender(SwapChain* pSwapChain, const Camera& Cam);
 		void OnDestroy();
 
 	private:
@@ -41,7 +44,8 @@ using namespace Microsoft::WRL;
 		void CreateRootSignature();
 		void CreateGraphicsPipelineState();
 
-		XMFLOAT4X4 GetPerFrameMatrix();
+		math::Matrix4 GetPerFrameMatrix(const Camera& Cam);
+		XMFLOAT4X4 GetPerFrameNativeMatrix(const Camera& Cam);
 
 		ImGUI m_ImGUIHelper;
 

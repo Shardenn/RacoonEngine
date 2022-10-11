@@ -7,6 +7,7 @@
 #include "Renderer.h"
 #include "GameTimer.h"
 #include "UI.h"
+#include "Misc/Camera.h"
 
 #include <memory>
 
@@ -26,7 +27,8 @@ namespace Racoon {
 		virtual void OnResize(bool resizeRender) override;
 		virtual void OnUpdateDisplay() override;
 		void OnUpdate();
-		
+		void UpdateCamera(Camera& cam, const ImGuiIO& io);
+
 		void BuildUI();
 
 		void CalculateFrameStats();
@@ -34,6 +36,8 @@ namespace Racoon {
 		std::unique_ptr<Renderer> m_Renderer;
 		GameTimer m_Timer;
 		UIState m_UIState;
+
+		Camera m_Camera;
 
 		bool m_IsPaused{ false };
 	};

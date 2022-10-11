@@ -3,6 +3,7 @@
 #include "base/Helper.h"
 #include "base/ShaderCompilerHelper.h"
 #include "Misc/Error.h"
+#include "Misc/Camera.h"
 
 #include <DirectXColors.h>
 
@@ -34,7 +35,7 @@ void Renderer::OnCreate(Device* pDevice, SwapChain* pSwapChain)
     depthStencilDest.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     // By default the state is COMMON, but the Cauldron helper InitDepthStencil also assigns DEPTH_WRITE.
     // Otherwise, we have to create a barrier transitioning to DEPTH_WRITE
-    m_Depth.InitDepthStencil(m_pDevice, "Depth", &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT,
+    m_Depth.InitDepthStencil(pDevice, "Depth", &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT,
         1920, 1080,
         1, 1, m_4xMsaasQuality ? 4 : 1, m_4xMsaasQuality ? (m_4xMsaasQuality - 1) : 0,
         D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_TEXTURE_LAYOUT_UNKNOWN, 0), 1.f);
@@ -62,7 +63,7 @@ void Renderer::OnCreate(Device* pDevice, SwapChain* pSwapChain)
     m_4xMsaasQuality = CheckForMSAAQualitySupport();
 }
 
-void Renderer::OnRender(SwapChain* pSwapChain)
+void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam)
 {
     m_CommandListRing.OnBeginFrame();
     m_DynamicBufferRing.OnBeginFrame();
@@ -71,13 +72,15 @@ void Renderer::OnRender(SwapChain* pSwapChain)
     
     Clear(pSwapChain, CmdList);
     
-    SetViewportAndScissor(CmdList, 0, 0, 900, 500);
+    SetViewportAndScissor(CmdList, 0, 0, 1920, 1080);
     
     CmdList->OMSetRenderTargets(1, pSwapChain->GetCurrentBackBufferRTV(), true, &m_DepthDSV.GetCPU());
 
     // Set per frame constants
     PerFrame perFrameData;
-    perFrameData.mvp = GetPerFrameMatrix();
+    //perFrameData.mvp = GetPerFrameMatrix(Cam);
+    perFrameData.mvp = GetPerFrameMatrix(Cam);
+    auto nativeMatrix = GetPerFrameNativeMatrix(Cam);
     m_ConstantBuffer = m_DynamicBufferRing.AllocConstantBuffer(sizeof(PerFrame), &perFrameData);
     // Set descriptor heap
     ID3D12DescriptorHeap *descriptorHeap = m_ResourceViewHeaps.GetCBV_SRV_UAVHeap();
@@ -233,23 +236,39 @@ void Renderer::CreateGraphicsPipelineState()
     );
 }
 
-XMFLOAT4X4 Renderer::GetPerFrameMatrix()
+math::Matrix4 Renderer::GetPerFrameMatrix(const Camera& Cam)
 {
-    XMVECTOR pos = XMVectorSet(0, 5, 5, 1.f);
+    math::Matrix4 model(math::Matrix4::identity());
+    auto camViewProj = Cam.GetProjection() * Cam.GetView();
+    auto mvp = camViewProj * model;
+    return math::transpose(mvp);
+}
+
+XMFLOAT4X4 Renderer::GetPerFrameNativeMatrix(const Camera& Cam)
+{
+    XMVECTOR pos = XMVectorSet(0, 0, 5.f, 1.f);
     XMVECTOR target = XMVectorZero();
     XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
     XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
+    XMFLOAT4X4 view4x4;
+    XMStoreFloat4x4(&view4x4, view);
 
-    XMMATRIX persp = XMMatrixPerspectiveFovLH(60, 1.7, 1, 50);
+    XMMATRIX persp = XMMatrixPerspectiveFovLH(45, 1.7, 0.1, 1000);
+    XMFLOAT4X4 proj4x4;
+    XMStoreFloat4x4(&proj4x4, persp);
 
     XMMATRIX trans = XMMatrixTranslationFromVector({ 0,0,0 });
     XMMATRIX rot = XMMatrixRotationZ(45);
     XMMATRIX scale = XMMatrixScalingFromVector({ 1, 1, 1 });
-    XMMATRIX transform = trans * rot * scale;
-    XMFLOAT4X4 res;
-    XMStoreFloat4x4(&res, transform);
+    XMMATRIX model = trans /** rot*/ * scale;
+    XMFLOAT4X4 model4x4;
+    XMStoreFloat4x4(&model4x4, model);
 
-    return res;
+    XMMATRIX modelViewProj = model * view * persp;
+    XMFLOAT4X4 mvp4x4;
+    XMStoreFloat4x4(&mvp4x4, XMMatrixTranspose(modelViewProj));
+
+    return mvp4x4;
 }
 
 uint32_t Renderer::CheckForMSAAQualitySupport()
@@ -272,11 +291,16 @@ uint32_t Renderer::CheckForMSAAQualitySupport()
 void Renderer::OnDestroy()
 {
     m_ImGUIHelper.OnDestroy();
+    m_Depth.OnDestroy();
+
+    m_RootSignature->Release();
+    m_PipelineState->Release();
+
+    m_UploadHeap.OnDestroy();
     m_StaticBufferPool.OnDestroy();
     m_DynamicBufferRing.OnDestroy();
-    m_UploadHeap.OnDestroy();
     m_ResourceViewHeaps.OnDestroy();
+    
     m_CommandListRing.OnDestroy();
-    m_Depth.OnDestroy();
 }
 }
