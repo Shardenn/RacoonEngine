@@ -14,6 +14,9 @@ RacoonEngine::RacoonEngine(LPCSTR name) :
 
 void RacoonEngine::OnParseCommandLine(LPSTR lpCmdLine, uint32_t* pWidth, uint32_t* pHeight)
 {
+    // Set some default values
+    *pWidth = 1920;
+    *pHeight = 1080;
 }
 
 void RacoonEngine::OnCreate()
@@ -21,13 +24,13 @@ void RacoonEngine::OnCreate()
     InitDirectXCompiler();
     CreateShaderCache();
 
+    m_Renderer.reset(new Renderer());
+    m_Renderer->OnCreate(&m_device, &m_swapChain);
+
     ImGUI_Init(m_windowHwnd);
 
     OnResize(true);
     OnUpdateDisplay();
-
-    m_Renderer.reset(new Renderer());
-    m_Renderer->OnCreate(&m_device, &m_swapChain);
 
     m_Camera.LookAt({ 0, 0, 5, 0 }, { 0, 0, 0, 0 });
 
@@ -41,6 +44,7 @@ void RacoonEngine::OnDestroy()
 
     CAULDRON_DX12::DestroyShaderCache(&m_device);
 
+    m_Renderer->OnDestroyWindowSizeDependentResources();
     m_Renderer->OnDestroy();
     m_Renderer.release();
 }
@@ -103,7 +107,7 @@ void RacoonEngine::OnRender()
     BuildUI();
 
     OnUpdate();
-    m_Renderer->OnRender(&m_swapChain, m_Camera);
+    m_Renderer->OnRender(&m_swapChain, m_Camera, m_Timer);
     CalculateFrameStats();
     EndFrame();
 }
@@ -126,7 +130,12 @@ bool RacoonEngine::OnEvent(MSG msg)
 
 void RacoonEngine::OnResize(bool resizeRender)
 {
-    m_Camera.SetFov(AMD_PI_OVER_4, 1920, 1080, 0.1f, 1000.f);
+    if (resizeRender && m_Width && m_Height && m_Renderer)
+    {
+        m_Renderer->OnDestroyWindowSizeDependentResources();
+        m_Renderer->OnCreateWindowSizeDependentResources(&m_swapChain, m_Width, m_Height);
+        m_Camera.SetFov(AMD_PI_OVER_4, m_Width, m_Height, 0.1f, 1000.f);
+    }
 }
 
 void RacoonEngine::OnUpdateDisplay()
@@ -140,16 +149,16 @@ void RacoonEngine::CalculateFrameStats()
 
     ++FrameCount;
 
-    if (m_Timer.TotalTime() - TimeElapsed >= 1.f)
+    if (m_Timer.TotalTime() - TimeElapsed >= m_UIState.StatsUpdateFrequency)
     {
-        float FPS = (float)FrameCount;
+        float FPS = (float)FrameCount / m_UIState.StatsUpdateFrequency;
         float mspf = 1000.f / FPS;
         
         m_UIState.LastMeasuredFPS = FPS;
         m_UIState.MillisecondsPerFrame = mspf;
 
         FrameCount = 0;
-        TimeElapsed += 1.f;
+        TimeElapsed += m_UIState.StatsUpdateFrequency;
     }
 }
 

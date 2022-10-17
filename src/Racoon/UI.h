@@ -13,6 +13,8 @@ struct UIState
 
     float LastMeasuredFPS{ 0 };
     float MillisecondsPerFrame{ 0 };
+
+    float StatsUpdateFrequency{ 0.1f };
 };
 
 }

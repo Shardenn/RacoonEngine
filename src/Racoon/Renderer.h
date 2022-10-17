@@ -12,6 +12,8 @@
 
 #include "Misc/Camera.h"
 
+#include "GameTimer.h"
+
 using namespace CAULDRON_DX12;
 
 static const uint8_t BACKBUFFER_COUNT = 2;
@@ -35,25 +37,30 @@ using namespace Microsoft::WRL;
 		};
 
 		void OnCreate(Device* pDevice, SwapChain* pSwapChain);
-		void OnRender(SwapChain* pSwapChain, const Camera& Cam);
+		void OnCreateWindowSizeDependentResources(SwapChain* pSwapChain, uint32_t Width, uint32_t Height);
+		
+		void OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTimer& Timer);
+
+		void OnDestroyWindowSizeDependentResources();
 		void OnDestroy();
 
 	private:
 		void Clear(SwapChain*, ID3D12GraphicsCommandList2*);
-		void InitGeometryBuffers();
+		void CreateGeometry(std::vector<D3D12_INPUT_ELEMENT_DESC>& layout);
 		void CreateRootSignature();
-		void CreateGraphicsPipelineState();
+		void CreateGraphicsPipelineState(const std::vector<D3D12_INPUT_ELEMENT_DESC>& layout);
 
-		math::Matrix4 GetPerFrameMatrix(const Camera& Cam);
-		XMFLOAT4X4 GetPerFrameNativeMatrix(const Camera& Cam);
-
-		ImGUI m_ImGUIHelper;
-
-		uint32_t CheckForMSAAQualitySupport();
+		uint32_t m_Width{ 0 }, m_Height{ 0 };
 
 		D3D12_VIEWPORT m_Viewport;
 		D3D12_RECT m_RectScissor;
 		DXGI_FORMAT m_BackbufferFormat;
+
+		math::Matrix4 GetPerFrameMatrix(const Camera& Cam);
+
+		ImGUI m_ImGUIHelper;
+
+		uint32_t CheckForMSAAQualitySupport();
 
 		Device* m_pDevice;
 		SwapChain* m_pSwapChain;
@@ -67,8 +74,10 @@ using namespace Microsoft::WRL;
 		Texture m_Depth;
 
 		D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView;
+
 		D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
 		D3D12_GPU_VIRTUAL_ADDRESS m_ConstantBuffer;
+		D3D12_GPU_VIRTUAL_ADDRESS m_TimeCB;
 
 		ID3D12RootSignature* m_RootSignature{ nullptr };
 		ID3D12PipelineState* m_PipelineState{ nullptr };

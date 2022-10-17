@@ -29,17 +29,7 @@ void Renderer::OnCreate(Device* pDevice, SwapChain* pSwapChain)
         m_RtvDescriptorSize,
         m_SamplerDescriptorSize);
 
-    // Allocate depth stencil view
     m_ResourceViewHeaps.AllocDSVDescriptor(1, &m_DepthDSV);
-    CD3DX12_RESOURCE_DESC depthStencilDest;
-    depthStencilDest.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    // By default the state is COMMON, but the Cauldron helper InitDepthStencil also assigns DEPTH_WRITE.
-    // Otherwise, we have to create a barrier transitioning to DEPTH_WRITE
-    m_Depth.InitDepthStencil(pDevice, "Depth", &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT,
-        1920, 1080,
-        1, 1, m_4xMsaasQuality ? 4 : 1, m_4xMsaasQuality ? (m_4xMsaasQuality - 1) : 0,
-        D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_TEXTURE_LAYOUT_UNKNOWN, 0), 1.f);
-    m_Depth.CreateDSV(0, &m_DepthDSV);
 
     const uint32_t uploadHeapMemSize = 1000 * 1024 * 1024;
     const uint32_t constantBufferMemSize = 200 * 1024 * 1024;
@@ -51,19 +41,38 @@ void Renderer::OnCreate(Device* pDevice, SwapChain* pSwapChain)
     // Create a 'static' pool for vertices, indices and constant buffers
     const uint32_t staticGeometryMemSize = (5 * 128) * 1024 * 1024;
     m_StaticBufferPool.OnCreate(pDevice, staticGeometryMemSize, true, "StaticGeometry");
-    // Make sure upload heap has finished uploading before continuing
-    m_StaticBufferPool.UploadData(m_UploadHeap.GetCommandList());
     
-    InitGeometryBuffers();
     CreateRootSignature();
-    CreateGraphicsPipelineState();
+
+    std::vector<D3D12_INPUT_ELEMENT_DESC> layout;
+    CreateGeometry(layout);
+    CreateGraphicsPipelineState(layout);
 
     m_UploadHeap.FlushAndFinish();
 
     m_4xMsaasQuality = CheckForMSAAQualitySupport();
+    m_4xMsaasQuality = 0; // Cauldron creates swapchain with 1 sample hardcoded. Can't use MSAA for depth while render target is not MSAA
+
 }
 
-void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam)
+void Renderer::OnCreateWindowSizeDependentResources(SwapChain* pSwapChain, uint32_t Width, uint32_t Height)
+{
+    m_Width = Width;
+    m_Height = Height;
+
+    m_Viewport = { 0.0f, 0.0f, static_cast<float>(Width), static_cast<float>(Height), 0.0f, 1.0f };
+    m_RectScissor = { 0, 0, (LONG)Width, (LONG)Height };
+
+    // By default the state is COMMON, but the Cauldron helper InitDepthStencil also assigns DEPTH_WRITE.
+    // Otherwise, we have to create a barrier transitioning to DEPTH_WRITE
+    m_Depth.InitDepthStencil(m_pDevice, "Depth", &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT,
+        Width, Height,
+        1, 1, m_4xMsaasQuality ? 4 : 1, m_4xMsaasQuality ? (m_4xMsaasQuality - 1) : 0,
+        D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_TEXTURE_LAYOUT_UNKNOWN, 0), 1.f);
+    m_Depth.CreateDSV(0, &m_DepthDSV);
+}
+
+void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTimer& Timer)
 {
     m_CommandListRing.OnBeginFrame();
     m_DynamicBufferRing.OnBeginFrame();
@@ -71,17 +80,18 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam)
     ID3D12GraphicsCommandList2* CmdList = m_CommandListRing.GetNewCommandList();
     
     Clear(pSwapChain, CmdList);
-    
-    SetViewportAndScissor(CmdList, 0, 0, 1920, 1080);
-    
+
+    CmdList->RSSetViewports(1, &m_Viewport);
+    CmdList->RSSetScissorRects(1, &m_RectScissor);
     CmdList->OMSetRenderTargets(1, pSwapChain->GetCurrentBackBufferRTV(), true, &m_DepthDSV.GetCPU());
 
     // Set per frame constants
     PerFrame perFrameData;
-    //perFrameData.mvp = GetPerFrameMatrix(Cam);
     perFrameData.mvp = GetPerFrameMatrix(Cam);
-    auto nativeMatrix = GetPerFrameNativeMatrix(Cam);
     m_ConstantBuffer = m_DynamicBufferRing.AllocConstantBuffer(sizeof(PerFrame), &perFrameData);
+
+    //std::array<float, 4> time{ Timer.TotalTime(), 0.f, 0.f, 0.f };
+    //m_TimeCB = m_DynamicBufferRing.AllocConstantBuffer(sizeof(float) * 4, time.data());
     // Set descriptor heap
     ID3D12DescriptorHeap *descriptorHeap = m_ResourceViewHeaps.GetCBV_SRV_UAVHeap();
     CmdList->SetDescriptorHeaps(1, &descriptorHeap);
@@ -91,11 +101,8 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam)
     CmdList->IASetIndexBuffer(&m_IndexBufferView);
 
     CmdList->SetGraphicsRootSignature(m_RootSignature);
-
-    //CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(m_ResourceViewHeaps.GetCBV_SRV_UAVHeap()->GetGPUDescriptorHandleForHeapStart());
-    //cbv.Offset()
-    //CmdList->SetGraphicsRootDescriptorTable(0, cbv);
     CmdList->SetGraphicsRootConstantBufferView(0, m_ConstantBuffer);
+
     CmdList->SetPipelineState(m_PipelineState);
 
     CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -127,7 +134,7 @@ void Renderer::Clear(SwapChain* pSwapChain, ID3D12GraphicsCommandList2* CmdList)
     CmdList->ClearDepthStencilView(m_DepthDSV.GetCPU(), D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
 }
 
-void Renderer::InitGeometryBuffers()
+void Renderer::CreateGeometry(std::vector<D3D12_INPUT_ELEMENT_DESC>& layout)
 {
     // Cube
     Vertex vertices[] = {
@@ -141,8 +148,18 @@ void Renderer::InitGeometryBuffers()
         { XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) }
     };
 
+    // Hardcode for now. Later CreateGeometry should read geometry input
+    // from glTF and modify layout automatically
+    layout = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12,
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+    };
+
     m_StaticBufferPool.AllocVertexBuffer(sizeof(vertices) / sizeof(vertices[0]),
         sizeof(Vertex), vertices, &m_VertexBufferView);
+
     uint16_t indices[] = {
         // front face
         0, 1, 2,
@@ -198,15 +215,8 @@ void Renderer::CreateRootSignature()
     SetName(m_RootSignature, "Renderer::m_RootSignature");
 }
 
-void Renderer::CreateGraphicsPipelineState()
+void Renderer::CreateGraphicsPipelineState(const std::vector<D3D12_INPUT_ELEMENT_DESC>& layout)
 {
-    std::vector<D3D12_INPUT_ELEMENT_DESC> layout = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
-            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12,
-            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-    };
-
     D3D12_SHADER_BYTECODE shaderVert, shaderPixel;
     CompileShaderFromFile("default_vertex.hlsl", nullptr, "VS", "-T vs_6_0", &shaderVert);
     CompileShaderFromFile("default_pixel.hlsl", nullptr, "PS", "-T ps_6_0", &shaderPixel);
@@ -244,33 +254,6 @@ math::Matrix4 Renderer::GetPerFrameMatrix(const Camera& Cam)
     return math::transpose(mvp);
 }
 
-XMFLOAT4X4 Renderer::GetPerFrameNativeMatrix(const Camera& Cam)
-{
-    XMVECTOR pos = XMVectorSet(0, 0, 5.f, 1.f);
-    XMVECTOR target = XMVectorZero();
-    XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
-    XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
-    XMFLOAT4X4 view4x4;
-    XMStoreFloat4x4(&view4x4, view);
-
-    XMMATRIX persp = XMMatrixPerspectiveFovLH(45, 1.7, 0.1, 1000);
-    XMFLOAT4X4 proj4x4;
-    XMStoreFloat4x4(&proj4x4, persp);
-
-    XMMATRIX trans = XMMatrixTranslationFromVector({ 0,0,0 });
-    XMMATRIX rot = XMMatrixRotationZ(45);
-    XMMATRIX scale = XMMatrixScalingFromVector({ 1, 1, 1 });
-    XMMATRIX model = trans /** rot*/ * scale;
-    XMFLOAT4X4 model4x4;
-    XMStoreFloat4x4(&model4x4, model);
-
-    XMMATRIX modelViewProj = model * view * persp;
-    XMFLOAT4X4 mvp4x4;
-    XMStoreFloat4x4(&mvp4x4, XMMatrixTranspose(modelViewProj));
-
-    return mvp4x4;
-}
-
 uint32_t Renderer::CheckForMSAAQualitySupport()
 {
     D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
@@ -288,10 +271,15 @@ uint32_t Renderer::CheckForMSAAQualitySupport()
     return msQualityLevels.NumQualityLevels;
 }
 
+void Renderer::OnDestroyWindowSizeDependentResources()
+{
+
+    m_Depth.OnDestroy();
+}
+
 void Renderer::OnDestroy()
 {
     m_ImGUIHelper.OnDestroy();
-    m_Depth.OnDestroy();
 
     m_RootSignature->Release();
     m_PipelineState->Release();
