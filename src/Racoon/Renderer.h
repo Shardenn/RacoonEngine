@@ -33,8 +33,8 @@ using namespace Microsoft::WRL;
 		struct PerFrame
 		{
 			math::Matrix4 mvp;
-			float time;
-			math::Vector3 pad;
+			float Time;
+			math::Vector4 PulseColor;
 			//XMFLOAT4X4 mvp;
 		};
 

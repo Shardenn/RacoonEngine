@@ -2,7 +2,7 @@ cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorldViewProj;
     float gTime;
-    float3 pad;
+    float4 gPulseColor;
 }
 
 void VS(float3 inPos : POSITION,

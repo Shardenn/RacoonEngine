@@ -88,7 +88,8 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTime
     // Set per frame constants
     PerFrame perFrameData;
     perFrameData.mvp = GetPerFrameMatrix(Cam);
-    perFrameData.time = Timer.TotalTime();
+    perFrameData.Time = Timer.TotalTime();
+    perFrameData.PulseColor = { 0.8f, 0.2f, 0.4f, 1.f };
     m_ConstantBuffer = m_DynamicBufferRing.AllocConstantBuffer(sizeof(PerFrame), &perFrameData);
 
     //std::array<float, 4> time{ Timer.TotalTime(), 0.f, 0.f, 0.f };
