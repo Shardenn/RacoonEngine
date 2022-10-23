@@ -1,12 +1,8 @@
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorldViewProj;
-}
-
-cbuffer cbTime : register(b1)
-{
     float gTime;
-    float3 gPad;
+    float3 pad;
 }
 
 void VS(float3 inPos : POSITION,
@@ -15,5 +11,6 @@ void VS(float3 inPos : POSITION,
         out float4 outColor : COLOR)
 {
     outPosH = mul(float4(inPos, 1.0f), gWorldViewProj);
+
     outColor = inColor;
 }

@@ -88,6 +88,7 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTime
     // Set per frame constants
     PerFrame perFrameData;
     perFrameData.mvp = GetPerFrameMatrix(Cam);
+    perFrameData.time = Timer.TotalTime();
     m_ConstantBuffer = m_DynamicBufferRing.AllocConstantBuffer(sizeof(PerFrame), &perFrameData);
 
     //std::array<float, 4> time{ Timer.TotalTime(), 0.f, 0.f, 0.f };
@@ -218,8 +219,8 @@ void Renderer::CreateRootSignature()
 void Renderer::CreateGraphicsPipelineState(const std::vector<D3D12_INPUT_ELEMENT_DESC>& layout)
 {
     D3D12_SHADER_BYTECODE shaderVert, shaderPixel;
-    CompileShaderFromFile("default_vertex.hlsl", nullptr, "VS", "-T vs_6_0", &shaderVert);
-    CompileShaderFromFile("default_pixel.hlsl", nullptr, "PS", "-T ps_6_0", &shaderPixel);
+    CompileShaderFromFile("../../assets/shaders/default_vertex.hlsl", nullptr, "VS", "-T vs_6_0", &shaderVert);
+    CompileShaderFromFile("../../assets/shaders/default_pixel.hlsl", nullptr, "PS", "-T ps_6_0", &shaderPixel);
 
     // Create a PSO description
     D3D12_GRAPHICS_PIPELINE_STATE_DESC descPso = {};
