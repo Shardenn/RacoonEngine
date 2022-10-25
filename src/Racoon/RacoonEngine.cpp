@@ -108,6 +108,9 @@ void RacoonEngine::OnRender()
 
     OnUpdate();
     m_Renderer->OnRender(&m_swapChain, m_Camera, m_Timer);
+    
+    ImGui::EndFrame();
+
     CalculateFrameStats();
     EndFrame();
 }

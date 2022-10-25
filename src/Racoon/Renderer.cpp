@@ -52,7 +52,6 @@ void Renderer::OnCreate(Device* pDevice, SwapChain* pSwapChain)
 
     m_4xMsaasQuality = CheckForMSAAQualitySupport();
     m_4xMsaasQuality = 0; // Cauldron creates swapchain with 1 sample hardcoded. Can't use MSAA for depth while render target is not MSAA
-
 }
 
 void Renderer::OnCreateWindowSizeDependentResources(SwapChain* pSwapChain, uint32_t Width, uint32_t Height)
@@ -79,11 +78,16 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTime
     
     ID3D12GraphicsCommandList2* CmdList = m_CommandListRing.GetNewCommandList();
     
+    auto CurrentBackBufferRT = pSwapChain->GetCurrentBackBufferResource();
+
+    CmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBufferRT,
+        D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
     Clear(pSwapChain, CmdList);
 
+    CmdList->OMSetRenderTargets(1, pSwapChain->GetCurrentBackBufferRTV(), true, &m_DepthDSV.GetCPU());
     CmdList->RSSetViewports(1, &m_Viewport);
     CmdList->RSSetScissorRects(1, &m_RectScissor);
-    CmdList->OMSetRenderTargets(1, pSwapChain->GetCurrentBackBufferRTV(), true, &m_DepthDSV.GetCPU());
 
     // Set per frame constants
     PerFrame perFrameData;
@@ -110,28 +114,23 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTime
     CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     CmdList->DrawIndexedInstanced(36, 1, 0, 0, 0);
-
+    
     // Draw UI
     m_ImGUIHelper.Draw(CmdList);
 
     // Switch backbuffer
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(pSwapChain->GetCurrentBackBufferResource(),
-        D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    CmdList->ResourceBarrier(1, &barrier);
+    CmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBufferRT,
+        D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
     ThrowIfFailed(CmdList->Close());
     ID3D12CommandList* CmdListLists[] = { CmdList };
     m_pDevice->GetGraphicsQueue()->ExecuteCommandLists(1, CmdListLists);
-    pSwapChain->WaitForSwapChain();
+    //pSwapChain->WaitForSwapChain();
 }
 
 void Renderer::Clear(SwapChain* pSwapChain, ID3D12GraphicsCommandList2* CmdList)
 {
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(pSwapChain->GetCurrentBackBufferResource(),
-        D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    CmdList->ResourceBarrier(1, &barrier);
 
-    float clearColor[]{ 0.1f, 0.4f, 1.0f, 1.0f };
     CmdList->ClearRenderTargetView(*pSwapChain->GetCurrentBackBufferRTV(), Colors::SeaGreen, 0, nullptr);
     CmdList->ClearDepthStencilView(m_DepthDSV.GetCPU(), D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
 }

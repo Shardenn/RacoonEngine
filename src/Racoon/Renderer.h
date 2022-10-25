@@ -9,6 +9,7 @@
 #include "base/Buffer.h"
 #include "base/StaticConstantBufferPool.h"
 #include "base/StaticBufferPool.h"
+#include "base/CommandListRing.h"
 
 #include "Misc/Camera.h"
 
@@ -16,7 +17,7 @@
 
 using namespace CAULDRON_DX12;
 
-static const uint8_t BACKBUFFER_COUNT = 2;
+static const uint8_t BACKBUFFER_COUNT = 3;
 
 namespace Racoon {
 using namespace Microsoft::WRL;
