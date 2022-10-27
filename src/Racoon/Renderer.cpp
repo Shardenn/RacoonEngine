@@ -7,6 +7,8 @@
 
 #include <DirectXColors.h>
 
+#include "PrimitivesGenerator.h"
+
 namespace Racoon {
 
 void Renderer::OnCreate(Device* pDevice, SwapChain* pSwapChain)
@@ -89,32 +91,37 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTime
     CmdList->RSSetViewports(1, &m_Viewport);
     CmdList->RSSetScissorRects(1, &m_RectScissor);
 
-    // Set per frame constants
-    PerFrame perFrameData;
-    perFrameData.mvp = GetPerFrameMatrix(Cam);
-    perFrameData.Time = Timer.TotalTime();
-    perFrameData.PulseColor = { 0.8f, 0.2f, 0.4f, 1.f };
-    m_ConstantBuffer = m_DynamicBufferRing.AllocConstantBuffer(sizeof(PerFrame), &perFrameData);
+    PerFrame perFrame = FillPerFrameConstants(Cam);
+    m_PerFrameBuffer = m_DynamicBufferRing.AllocConstantBuffer(sizeof(PerFrame), &perFrame);
 
     //std::array<float, 4> time{ Timer.TotalTime(), 0.f, 0.f, 0.f };
     //m_TimeCB = m_DynamicBufferRing.AllocConstantBuffer(sizeof(float) * 4, time.data());
     // Set descriptor heap
     ID3D12DescriptorHeap *descriptorHeap = m_ResourceViewHeaps.GetCBV_SRV_UAVHeap();
     CmdList->SetDescriptorHeaps(1, &descriptorHeap);
-
-    // Draw geometry
-    CmdList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
-    CmdList->IASetIndexBuffer(&m_IndexBufferView);
-
     CmdList->SetGraphicsRootSignature(m_RootSignature);
-    CmdList->SetGraphicsRootConstantBufferView(0, m_ConstantBuffer);
+    CmdList->SetGraphicsRootConstantBufferView(1, m_PerFrameBuffer);
 
     CmdList->SetPipelineState(m_PipelineState);
 
     CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    // PER OBJECT
+    {
+        // Set per frame constants
+        PerObject perObject;
+        perObject.objToWorld = perObject.objToWorld.identity();
+        m_PerObjectBuffer = m_DynamicBufferRing.AllocConstantBuffer(sizeof(PerObject), &perObject);
 
-    CmdList->DrawIndexedInstanced(36, 1, 0, 0, 0);
-    
+        // Draw geometry
+        CmdList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
+        CmdList->IASetIndexBuffer(&m_IndexBufferView);
+
+        CmdList->SetGraphicsRootConstantBufferView(0, m_PerObjectBuffer);
+
+        CmdList->DrawIndexedInstanced(36, 1, 0, 0, 0);
+    }
+    // PER OBJECT FINISHED
+
     // Draw UI
     m_ImGUIHelper.Draw(CmdList);
 
@@ -137,53 +144,27 @@ void Renderer::Clear(SwapChain* pSwapChain, ID3D12GraphicsCommandList2* CmdList)
 
 void Renderer::CreateGeometry(std::vector<D3D12_INPUT_ELEMENT_DESC>& layout)
 {
-    // Cube
-    Vertex vertices[] = {
-        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) },
-        { XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) },
-        { XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) },
-        { XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) },
-        { XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) },
-        { XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) },
-        { XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) },
-        { XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) }
-    };
+    PrimitivesGenerator Generator;
+    auto CubeMesh = Generator.CreateCube();
 
     // Hardcode for now. Later CreateGeometry should read geometry input
     // from glTF and modify layout automatically
     layout = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12,
-            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24,
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        { "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 36,
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
     };
 
-    m_StaticBufferPool.AllocVertexBuffer(sizeof(vertices) / sizeof(vertices[0]),
-        sizeof(Vertex), vertices, &m_VertexBufferView);
+    m_StaticBufferPool.AllocVertexBuffer(sizeof(CubeMesh.Vertices) / sizeof(CubeMesh.Vertices[0]),
+        sizeof(Vertex), &CubeMesh.Vertices, &m_VertexBufferView);
 
-    uint16_t indices[] = {
-        // front face
-        0, 1, 2,
-        0, 2, 3,
-        // back face
-        4, 6, 5,
-        4, 7, 6,
-        // left face
-        4, 5, 1,
-        4, 1, 0,
-        // right face
-        3, 2, 6,
-        3, 6, 7,
-        // top face
-        1, 5, 6,
-        1, 6, 2,
-        // bottom face
-        4, 0, 3,
-        4, 3, 7
-    };
-
-    m_StaticBufferPool.AllocIndexBuffer(sizeof(indices) / sizeof(indices[0]),
-        sizeof(std::uint16_t), indices, &m_IndexBufferView);
+    m_StaticBufferPool.AllocIndexBuffer(sizeof(CubeMesh.Indices32) / sizeof(CubeMesh.Indices32[0]),
+        sizeof(std::uint16_t), &CubeMesh.Indices32, &m_IndexBufferView);
 
     // Make sure we've finished uploading
     m_StaticBufferPool.UploadData(m_UploadHeap.GetCommandList());
@@ -194,11 +175,12 @@ void Renderer::CreateGeometry(std::vector<D3D12_INPUT_ELEMENT_DESC>& layout)
 
 void Renderer::CreateRootSignature()
 {
-    CD3DX12_ROOT_PARAMETER rootParam[1];
+    CD3DX12_ROOT_PARAMETER rootParam[2];
     rootParam[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
+    rootParam[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
 
     // A root signature is an array of root parameters
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignDesc(1, rootParam, 0, nullptr,
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignDesc(2, rootParam, 0, nullptr,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     
     ID3DBlob* pSerializedRootSignBlob, * pErrorBlob = nullptr;
@@ -218,9 +200,11 @@ void Renderer::CreateRootSignature()
 
 void Renderer::CreateGraphicsPipelineState(const std::vector<D3D12_INPUT_ELEMENT_DESC>& layout)
 {
-    D3D12_SHADER_BYTECODE shaderVert, shaderPixel;
-    CompileShaderFromFile("../../assets/shaders/default_vertex.hlsl", nullptr, "VS", "-T vs_6_0", &shaderVert);
-    CompileShaderFromFile("../../assets/shaders/default_pixel.hlsl", nullptr, "PS", "-T ps_6_0", &shaderPixel);
+    D3D12_SHADER_BYTECODE shaderVert, shaderPixel, shaderSemantics;
+
+    CompileShaderFromFile("shaders_semantics.hlsl", nullptr, "Placeholder", "-T vs_6_0", &shaderSemantics);
+    CompileShaderFromFile("default_vertex.hlsl", nullptr, "VS", "-T vs_6_0", &shaderVert);
+    CompileShaderFromFile("default_pixel.hlsl", nullptr, "PS", "-T ps_6_0", &shaderPixel);
 
     // Create a PSO description
     D3D12_GRAPHICS_PIPELINE_STATE_DESC descPso = {};
@@ -247,12 +231,17 @@ void Renderer::CreateGraphicsPipelineState(const std::vector<D3D12_INPUT_ELEMENT
     );
 }
 
-math::Matrix4 Renderer::GetPerFrameMatrix(const Camera& Cam)
+math::Matrix4 Renderer::GetViewProjMatrix(const Camera& Cam)
 {
-    math::Matrix4 model(math::Matrix4::identity());
-    auto camViewProj = Cam.GetProjection() * Cam.GetView();
-    auto mvp = camViewProj * model;
-    return math::transpose(mvp);
+    const auto viewProj = Cam.GetProjection() * Cam.GetView();
+    return math::transpose(viewProj);
+}
+
+Renderer::PerFrame Renderer::FillPerFrameConstants(const Camera& Cam)
+{
+    PerFrame perFrame;
+    perFrame.gViewProj = GetViewProjMatrix(Cam);
+    return perFrame;
 }
 
 uint32_t Renderer::CheckForMSAAQualitySupport()

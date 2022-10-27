@@ -2,7 +2,7 @@
 
 namespace Racoon {
 
-PrimitivesGenerator::MeshData PrimitivesGenerator::CreateCylinder(
+MeshData PrimitivesGenerator::CreateCylinder(
     float BottomRadius, float TopRadius, float Height, 
     uint32_t SliceCount, uint32_t StackCount)
 {
@@ -62,6 +62,56 @@ PrimitivesGenerator::MeshData PrimitivesGenerator::CreateCylinder(
 
     BuildCylinderBottomCap(BottomRadius, TopRadius, Height, SliceCount, StackCount, Mesh);
     BuildCylinderTopCap(BottomRadius, TopRadius, Height, SliceCount, StackCount, Mesh);
+
+    return Mesh;
+}
+
+MeshData PrimitivesGenerator::CreateCube()
+{
+    MeshData Mesh;
+    Mesh.Vertices.resize(24);
+
+    Mesh.Vertices = {
+        // Front face
+        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(-1.0f,  1.0f, -1.0f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(1.0f,   1.0f, -1.0f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(1.0f,  -1.0f, -1.0f), XMFLOAT3(0.f, 0.f, -1.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        // Right face
+        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(1.0f,  1.0f, -1.0f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(1.0f,  1.0f,  1.0f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(1.0f, -1.0f,  1.0f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        // Back face
+        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.f, 0.f, 1.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(-1.0f,  1.0f, 1.0f), XMFLOAT3(0.f, 0.f, 1.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(1.0f,  1.0f, 1.0f), XMFLOAT3(0.f, 0.f, 1.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.f, 0.f, 1.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        // Left face
+        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.f, 0.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(-1.0f,  1.0f, -1.0f), XMFLOAT3(-1.f, 0.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(-1.0f,  1.0f,  1.0f), XMFLOAT3(-1.f, 0.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(-1.0f, -1.0f,  1.0f), XMFLOAT3(-1.f, 0.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        // Top face
+        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(-1.0f, 1.0f,  1.0f), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(1.0f, 1.0f,  1.0f), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.f, 1.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        // Bottom face
+        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.f, -1.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(-1.0f, -1.0f,  1.0f), XMFLOAT3(0.f, -1.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(1.0f, -1.0f, 1.0f),  XMFLOAT3(0.f, -1.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) },
+        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.f, -1.f, 0.f), XMFLOAT3(1.f, 0.f, 0.f), XMFLOAT2(0.33f, 0.5f) }
+    };
+    Mesh.Indices32.resize(36);
+
+    for (uint32_t i = 0; i < 6; ++i)
+    {
+        std::vector<uint32_t> indicesOfCurrFace = {
+            0 + i * 3, 1 + i * 3, 2 + i * 3, i * 3, 2 + i * 3, 3 + i * 3 
+        };
+        Mesh.Indices32.insert(Mesh.Indices32.end(), indicesOfCurrFace.begin(), indicesOfCurrFace.end());
+    }
 
     return Mesh;
 }

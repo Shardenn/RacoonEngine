@@ -14,6 +14,7 @@
 #include "Misc/Camera.h"
 
 #include "GameTimer.h"
+#include "RenderItem.h"
 
 using namespace CAULDRON_DX12;
 
@@ -31,12 +32,27 @@ using namespace Microsoft::WRL;
 			XMFLOAT4 Color;
 		};
 
+		struct PerObject
+		{
+			math::Matrix4 objToWorld;
+		};
+
 		struct PerFrame
 		{
-			math::Matrix4 mvp;
-			float Time;
-			math::Vector4 PulseColor;
-			//XMFLOAT4X4 mvp;
+			math::Matrix4 gView;
+			math::Matrix4 gInvView;
+			math::Matrix4 gProj;
+			math::Matrix4 gInvProj;
+			math::Matrix4 gViewProj;
+			math::Matrix4 gInvViewProj;
+			math::Vector3 gEyePosW;
+			float cbPerObjectPad1;
+			math::Vector2 gRenderTargetSize;
+			math::Vector2 gInvRenderTargetSize;
+			float gNearZ;
+			float gFarZ;
+			float gTotalTime;
+			float gDeltaTime;
 		};
 
 		void OnCreate(Device* pDevice, SwapChain* pSwapChain);
@@ -59,8 +75,9 @@ using namespace Microsoft::WRL;
 		D3D12_RECT m_RectScissor;
 		DXGI_FORMAT m_BackbufferFormat;
 
-		math::Matrix4 GetPerFrameMatrix(const Camera& Cam);
-
+		math::Matrix4 GetViewProjMatrix(const Camera& Cam);
+		PerFrame FillPerFrameConstants(const Camera& Cam);
+		
 		ImGUI m_ImGUIHelper;
 
 		uint32_t CheckForMSAAQualitySupport();
@@ -80,6 +97,8 @@ using namespace Microsoft::WRL;
 
 		D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
 		D3D12_GPU_VIRTUAL_ADDRESS m_ConstantBuffer;
+		D3D12_GPU_VIRTUAL_ADDRESS m_PerFrameBuffer;
+		D3D12_GPU_VIRTUAL_ADDRESS m_PerObjectBuffer;
 		D3D12_GPU_VIRTUAL_ADDRESS m_TimeCB;
 
 		ID3D12RootSignature* m_RootSignature{ nullptr };
@@ -91,6 +110,10 @@ using namespace Microsoft::WRL;
 			m_SamplerDescriptorSize;
 
 		uint32_t m_4xMsaasQuality;
+
+		std::vector<std::shared_ptr<RenderItem>> m_Objects;
+		std::vector<std::shared_ptr<RenderItem>> m_ObjectsOpaque;
+		std::vector<std::shared_ptr<RenderItem>> m_ObjectsTransparent;
 	};
 
 }

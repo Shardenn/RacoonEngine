@@ -1,11 +1,6 @@
-cbuffer cbPerObject : register(b0)
-{
-    float4x4 gWorldViewProj;
-    float gTime;
-    float4 gPulseColor;
-}
+#include "shaders_semantics.hlsl"
 
-float4 PS(float4 inPosH : SV_POSITION, float4 inColor : COLOR) : SV_TARGET
+float4 PS(VSout vout) : SV_TARGET
 {
-    return inColor;
+    return float4(vout.posH.xyz, 1.0f);
 }

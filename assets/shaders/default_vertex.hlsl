@@ -1,16 +1,39 @@
+#include "shaders_semantics.hlsl"
+
 cbuffer cbPerObject : register(b0)
 {
-    float4x4 gWorldViewProj;
-    float gTime;
-    float4 gPulseColor;
+    float4x4 gObjectToWorld;
 }
 
-void VS(float3 inPos : POSITION,
-        float4 inColor : COLOR,
-        out float4 outPosH : SV_POSITION,
-        out float4 outColor : COLOR)
+cbuffer cbPerPass : register(b1)
 {
-    outPosH = mul(float4(inPos, 1.0f), gWorldViewProj);
+    // float 4x4 * 6 +
+    // float 3 * 1 +
+    // float 1 * 5 +
+    // float 2 * 2
+    // = 76
+    float4x4 gView;
+    float4x4 gInvView;
+    float4x4 gProj;
+    float4x4 gInvProj;
+    float4x4 gViewProj;
+    float4x4 gInvViewProj;
+    float3 gEyePosW;
+    float cbPerObjectPad1;
+    float2 gRenderTargetSize;
+    float2 gInvRenderTargetSize;
+    float gNearZ;
+    float gFarZ;
+    float gTotalTime;
+    float gDeltaTime;
+};
 
-    outColor = inColor;
+VSout VS(VSin vin)
+{
+    VSout vout;
+
+    float4 posW = mul(float4(vin.position, 1.0f), gObjectToWorld);
+    vout.posH = mul(posW, gViewProj);
+
+    return vout;
 }
