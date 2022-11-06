@@ -53,6 +53,7 @@ using namespace Microsoft::WRL;
 			float gFarZ;
 			float gTotalTime;
 			float gDeltaTime;
+			math::Matrix4 gObjToWorld;
 		};
 
 		void OnCreate(Device* pDevice, SwapChain* pSwapChain);

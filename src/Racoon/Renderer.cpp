@@ -93,32 +93,30 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTime
 
     PerFrame perFrame = FillPerFrameConstants(Cam);
     m_PerFrameBuffer = m_DynamicBufferRing.AllocConstantBuffer(sizeof(PerFrame), &perFrame);
-
     //std::array<float, 4> time{ Timer.TotalTime(), 0.f, 0.f, 0.f };
     //m_TimeCB = m_DynamicBufferRing.AllocConstantBuffer(sizeof(float) * 4, time.data());
     // Set descriptor heap
     ID3D12DescriptorHeap *descriptorHeap = m_ResourceViewHeaps.GetCBV_SRV_UAVHeap();
     CmdList->SetDescriptorHeaps(1, &descriptorHeap);
     CmdList->SetGraphicsRootSignature(m_RootSignature);
-    CmdList->SetGraphicsRootConstantBufferView(1, m_PerFrameBuffer);
-
+    CmdList->SetGraphicsRootConstantBufferView(0, m_PerFrameBuffer);
     CmdList->SetPipelineState(m_PipelineState);
 
     CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     // PER OBJECT
     {
         // Set per frame constants
-        PerObject perObject;
-        perObject.objToWorld = perObject.objToWorld.identity();
-        m_PerObjectBuffer = m_DynamicBufferRing.AllocConstantBuffer(sizeof(PerObject), &perObject);
+        //PerObject perObject;
+        //perObject.objToWorld = perObject.objToWorld.identity();
+        //m_PerObjectBuffer = m_DynamicBufferRing.AllocConstantBuffer(sizeof(PerObject), &perObject);
 
         // Draw geometry
         CmdList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
         CmdList->IASetIndexBuffer(&m_IndexBufferView);
 
-        CmdList->SetGraphicsRootConstantBufferView(0, m_PerObjectBuffer);
-
-        CmdList->DrawIndexedInstanced(36, 1, 0, 0, 0);
+        //CmdList->SetGraphicsRootConstantBufferView(1, m_PerObjectBuffer);
+        CmdList->DrawIndexedInstanced(
+            m_VertexBufferView.SizeInBytes / m_VertexBufferView.StrideInBytes, 1, 0, 0, 0);
     }
     // PER OBJECT FINISHED
 
@@ -137,7 +135,6 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTime
 
 void Renderer::Clear(SwapChain* pSwapChain, ID3D12GraphicsCommandList2* CmdList)
 {
-
     CmdList->ClearRenderTargetView(*pSwapChain->GetCurrentBackBufferRTV(), Colors::SeaGreen, 0, nullptr);
     CmdList->ClearDepthStencilView(m_DepthDSV.GetCPU(), D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
 }
@@ -145,7 +142,9 @@ void Renderer::Clear(SwapChain* pSwapChain, ID3D12GraphicsCommandList2* CmdList)
 void Renderer::CreateGeometry(std::vector<D3D12_INPUT_ELEMENT_DESC>& layout)
 {
     PrimitivesGenerator Generator;
-    auto CubeMesh = Generator.CreateCube();
+    auto Mesh = Generator.CreateCube();
+    //auto Mesh = Generator.CreateCylinder(1.f, 1.f, 2.f, 8, 2);
+    //auto Mesh = Generator.CreateGeosphere(2.f, 1);
 
     // Hardcode for now. Later CreateGeometry should read geometry input
     // from glTF and modify layout automatically
@@ -160,27 +159,21 @@ void Renderer::CreateGeometry(std::vector<D3D12_INPUT_ELEMENT_DESC>& layout)
             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
     };
 
-    m_StaticBufferPool.AllocVertexBuffer(sizeof(CubeMesh.Vertices) / sizeof(CubeMesh.Vertices[0]),
-        sizeof(Vertex), &CubeMesh.Vertices, &m_VertexBufferView);
+    m_StaticBufferPool.AllocVertexBuffer(Mesh.Vertices.size(),
+        sizeof(Vertex), Mesh.Vertices.data(), &m_VertexBufferView);
 
-    m_StaticBufferPool.AllocIndexBuffer(sizeof(CubeMesh.Indices32) / sizeof(CubeMesh.Indices32[0]),
-        sizeof(std::uint16_t), &CubeMesh.Indices32, &m_IndexBufferView);
-
-    // Make sure we've finished uploading
-    m_StaticBufferPool.UploadData(m_UploadHeap.GetCommandList());
-
-    XMFLOAT4X4 perFrameMatrix;
-    D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc;
+    m_StaticBufferPool.AllocIndexBuffer(Mesh.Indices32.size(),
+        sizeof(std::uint32_t), Mesh.Indices32.data(), &m_IndexBufferView);
 }
 
 void Renderer::CreateRootSignature()
 {
-    CD3DX12_ROOT_PARAMETER rootParam[2];
+    CD3DX12_ROOT_PARAMETER rootParam[1];
     rootParam[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
-    rootParam[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
+    //rootParam[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
 
     // A root signature is an array of root parameters
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignDesc(2, rootParam, 0, nullptr,
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignDesc(1, rootParam, 0, nullptr,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     
     ID3DBlob* pSerializedRootSignBlob, * pErrorBlob = nullptr;
@@ -241,6 +234,8 @@ Renderer::PerFrame Renderer::FillPerFrameConstants(const Camera& Cam)
 {
     PerFrame perFrame;
     perFrame.gViewProj = GetViewProjMatrix(Cam);
+    perFrame.gObjToWorld = math::Matrix4::identity();
+    perFrame.gDeltaTime = 0.7f;
     return perFrame;
 }
 

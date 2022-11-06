@@ -1,11 +1,11 @@
 #include "shaders_semantics.hlsl"
-
-cbuffer cbPerObject : register(b0)
+/*
+cbuffer cbPerObject : register(b1)
 {
     float4x4 gObjectToWorld;
 }
-
-cbuffer cbPerPass : register(b1)
+*/
+cbuffer cbPerPass : register(b0)
 {
     // float 4x4 * 6 +
     // float 3 * 1 +
@@ -26,6 +26,7 @@ cbuffer cbPerPass : register(b1)
     float gFarZ;
     float gTotalTime;
     float gDeltaTime;
+    float4x4 gObjectToWorld;
 };
 
 VSout VS(VSin vin)
@@ -34,6 +35,6 @@ VSout VS(VSin vin)
 
     float4 posW = mul(float4(vin.position, 1.0f), gObjectToWorld);
     vout.posH = mul(posW, gViewProj);
-
+    
     return vout;
 }

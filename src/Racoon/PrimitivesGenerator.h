@@ -13,6 +13,8 @@ public:
 
     MeshData CreateCube();
 
+    MeshData CreateGeosphere(float Radius, uint32_t NumSubdivisions);
+
 private:
     void BuildCylinderTopCap(
         float BottomRadius, float TopRadius, float Height,
