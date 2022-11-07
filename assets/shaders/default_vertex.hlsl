@@ -17,6 +17,7 @@ cbuffer cbPerPass : register(b0)
     float4x4 gProj;
     float4x4 gInvProj;
     float4x4 gViewProj;
+    float4x4 gObjectToWorld;
     float4x4 gInvViewProj;
     float3 gEyePosW;
     float cbPerObjectPad1;
@@ -26,14 +27,18 @@ cbuffer cbPerPass : register(b0)
     float gFarZ;
     float gTotalTime;
     float gDeltaTime;
-    float4x4 gObjectToWorld;
 };
+
+cbuffer cbPerObject : register(b1)
+{
+    float4x4 pObjToWorld;
+}
 
 VSout VS(VSin vin)
 {
     VSout vout;
 
-    float4 posW = mul(float4(vin.position, 1.0f), gObjectToWorld);
+    float4 posW = mul(float4(vin.position, 1.0f), pObjToWorld);
     vout.posH = mul(posW, gViewProj);
     
     return vout;

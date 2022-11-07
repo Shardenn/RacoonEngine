@@ -104,19 +104,21 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTime
 
     CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     // PER OBJECT
+    for (auto Object : m_Objects)
     {
         // Set per frame constants
-        //PerObject perObject;
-        //perObject.objToWorld = perObject.objToWorld.identity();
-        //m_PerObjectBuffer = m_DynamicBufferRing.AllocConstantBuffer(sizeof(PerObject), &perObject);
+        PerObject perObject;
+        perObject.objToWorld = Object->GetObjectToWorldMatrix();
+        m_PerObjectBuffer = m_DynamicBufferRing.AllocConstantBuffer(sizeof(PerObject), &perObject);
+        CmdList->SetGraphicsRootConstantBufferView(1, m_PerObjectBuffer);
 
         // Draw geometry
         CmdList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
         CmdList->IASetIndexBuffer(&m_IndexBufferView);
 
-        //CmdList->SetGraphicsRootConstantBufferView(1, m_PerObjectBuffer);
         CmdList->DrawIndexedInstanced(
-            m_VertexBufferView.SizeInBytes / m_VertexBufferView.StrideInBytes, 1, 0, 0, 0);
+            static_cast<uint32_t>(Object->GetMesh()->Indices32.size()), 1,
+            Object->StartIndexLocation, Object->BaseVertexLocation, 0);
     }
     // PER OBJECT FINISHED
 
@@ -142,7 +144,7 @@ void Renderer::Clear(SwapChain* pSwapChain, ID3D12GraphicsCommandList2* CmdList)
 void Renderer::CreateGeometry(std::vector<D3D12_INPUT_ELEMENT_DESC>& layout)
 {
     PrimitivesGenerator Generator;
-    auto Mesh = Generator.CreateCube();
+    
     //auto Mesh = Generator.CreateCylinder(1.f, 1.f, 2.f, 8, 2);
     //auto Mesh = Generator.CreateGeosphere(2.f, 1);
 
@@ -159,21 +161,62 @@ void Renderer::CreateGeometry(std::vector<D3D12_INPUT_ELEMENT_DESC>& layout)
             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
     };
 
-    m_StaticBufferPool.AllocVertexBuffer(Mesh.Vertices.size(),
-        sizeof(Vertex), Mesh.Vertices.data(), &m_VertexBufferView);
+    // Cube a bit to the right
+    auto CubeMesh = std::make_shared<MeshData>(Generator.CreateCube());
+    m_Objects.push_back(std::make_unique<RenderItem>(CubeMesh, 
+        math::transpose(math::Matrix4::translation({ 2,0,0 }))));
+    
+    auto AllVertices = CubeMesh->Vertices;
+    auto AllIndices =  CubeMesh->Indices32;
+    
+    // Cylinder a bit to the left
+    auto CylinderMesh = std::make_shared<MeshData>(Generator.CreateCylinder(1.f, 1.5f, 2.f, 8, 2));
+    m_Objects.push_back(std::make_unique<RenderItem>(CylinderMesh,
+        math::transpose(math::Matrix4::translation({ -2,0,0 }))));
+    m_Objects.back()->BaseVertexLocation = CubeMesh->Vertices.size();
+    m_Objects.back()->StartIndexLocation = CubeMesh->Indices32.size();
 
-    m_StaticBufferPool.AllocIndexBuffer(Mesh.Indices32.size(),
-        sizeof(std::uint32_t), Mesh.Indices32.data(), &m_IndexBufferView);
+    AllVertices.insert(AllVertices.end(), CylinderMesh->Vertices.begin(), CylinderMesh->Vertices.end());
+    AllIndices.insert( AllIndices.end(),  CylinderMesh->Indices32.begin(), CylinderMesh->Indices32.end());
+
+    // Sphere a bit back
+    auto SphereMesh = std::make_shared<MeshData>(Generator.CreateGeosphere(1.5f, 1));
+    m_Objects.push_back(std::make_unique<RenderItem>(SphereMesh,
+        math::transpose(math::Matrix4::translation({ 0,0,2 }))));
+    m_Objects.back()->BaseVertexLocation = m_Objects[1]->BaseVertexLocation + CylinderMesh->Vertices.size();
+    m_Objects.back()->StartIndexLocation = m_Objects[1]->StartIndexLocation + CylinderMesh->Indices32.size();
+
+    AllVertices.insert(AllVertices.end(), SphereMesh->Vertices.begin(), SphereMesh->Vertices.end());
+    AllIndices.insert(AllIndices.end(), SphereMesh->Indices32.begin(), SphereMesh->Indices32.end());
+
+    // Add one more cube
+    AllVertices.insert(AllVertices.end(), CubeMesh->Vertices.begin(), CubeMesh->Vertices.end());
+    AllIndices.insert(AllIndices.end(), CubeMesh->Indices32.begin(), CubeMesh->Indices32.end());
+
+    m_Objects.push_back(std::make_unique<RenderItem>(CubeMesh,
+        math::transpose(math::Matrix4::translation({ -2, 0, -3}))));
+    const auto PrevObject = m_Objects[m_Objects.size() - 2];
+    m_Objects.back()->BaseVertexLocation = PrevObject->BaseVertexLocation + PrevObject->GetMesh()->Vertices.size();
+    m_Objects.back()->StartIndexLocation = PrevObject->StartIndexLocation + PrevObject->GetMesh()->Indices32.size();
+
+    m_StaticBufferPool.AllocVertexBuffer(static_cast<uint32_t>(AllVertices.size()),
+        sizeof(Vertex), AllVertices.data(), &m_VertexBufferView);
+
+    m_StaticBufferPool.AllocIndexBuffer(static_cast<uint32_t>(AllIndices.size()),
+        sizeof(uint32_t), AllIndices.data(), &m_IndexBufferView);
+
+    // Make sure we've finished uploading
+    m_StaticBufferPool.UploadData(m_UploadHeap.GetCommandList());
 }
 
 void Renderer::CreateRootSignature()
 {
-    CD3DX12_ROOT_PARAMETER rootParam[1];
-    rootParam[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
-    //rootParam[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
+    CD3DX12_ROOT_PARAMETER rootParam[2];
+    rootParam[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    rootParam[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 
     // A root signature is an array of root parameters
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignDesc(1, rootParam, 0, nullptr,
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignDesc(2, rootParam, 0, nullptr,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     
     ID3DBlob* pSerializedRootSignBlob, * pErrorBlob = nullptr;
@@ -207,6 +250,7 @@ void Renderer::CreateGraphicsPipelineState(const std::vector<D3D12_INPUT_ELEMENT
     descPso.PS = shaderPixel;
     descPso.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     descPso.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+    descPso.RasterizerState.FrontCounterClockwise = true;
     descPso.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     descPso.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     descPso.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
@@ -218,6 +262,7 @@ void Renderer::CreateGraphicsPipelineState(const std::vector<D3D12_INPUT_ELEMENT
     descPso.SampleDesc.Count = m_4xMsaasQuality ? 4 : 1;
     descPso.SampleDesc.Quality = m_4xMsaasQuality ? (m_4xMsaasQuality - 1) : 0;
     descPso.NodeMask = 0;
+
 
     ThrowIfFailed(
         m_pDevice->GetDevice()->CreateGraphicsPipelineState(&descPso, IID_PPV_ARGS(&m_PipelineState))

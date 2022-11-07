@@ -26,12 +26,6 @@ using namespace Microsoft::WRL;
 	class Renderer
 	{
 	public:
-		struct Vertex
-		{
-			XMFLOAT3 Position;
-			XMFLOAT4 Color;
-		};
-
 		struct PerObject
 		{
 			math::Matrix4 objToWorld;
@@ -44,6 +38,7 @@ using namespace Microsoft::WRL;
 			math::Matrix4 gProj;
 			math::Matrix4 gInvProj;
 			math::Matrix4 gViewProj;
+			math::Matrix4 gObjToWorld;
 			math::Matrix4 gInvViewProj;
 			math::Vector3 gEyePosW;
 			float cbPerObjectPad1;
@@ -53,7 +48,6 @@ using namespace Microsoft::WRL;
 			float gFarZ;
 			float gTotalTime;
 			float gDeltaTime;
-			math::Matrix4 gObjToWorld;
 		};
 
 		void OnCreate(Device* pDevice, SwapChain* pSwapChain);
