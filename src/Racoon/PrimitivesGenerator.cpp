@@ -50,13 +50,13 @@ MeshData PrimitivesGenerator::CreateCylinder(
     {
         for (uint32_t j = 0; j < SliceCount; ++j)
         {
-            Mesh.Indices32.push_back(i * RingVertexCount + j);
+            Mesh.Indices32.push_back((i + 1) * RingVertexCount + j + 1);
             Mesh.Indices32.push_back((i + 1) * RingVertexCount + j);
-            Mesh.Indices32.push_back((i + 1) * RingVertexCount + j + 1);
-
             Mesh.Indices32.push_back(i * RingVertexCount + j);
-            Mesh.Indices32.push_back((i + 1) * RingVertexCount + j + 1);
+
             Mesh.Indices32.push_back(i * RingVertexCount + j + 1);
+            Mesh.Indices32.push_back((i + 1) * RingVertexCount + j + 1);
+            Mesh.Indices32.push_back(i * RingVertexCount + j);
         }
     }
 
@@ -146,9 +146,9 @@ void PrimitivesGenerator::BuildCylinderTopCap(float BottomRadius, float TopRadiu
 
     for (uint32_t i = 0; i < SliceCount; ++i)
     {
-        Mesh.Indices32.push_back(CenterIndex);
-        Mesh.Indices32.push_back(BaseIndex + i + 1);
         Mesh.Indices32.push_back(BaseIndex + i);
+        Mesh.Indices32.push_back(BaseIndex + i + 1);
+        Mesh.Indices32.push_back(CenterIndex);
     }
 }
 
