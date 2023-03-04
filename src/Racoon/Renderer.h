@@ -18,7 +18,7 @@
 
 using namespace CAULDRON_DX12;
 
-static const uint8_t BACKBUFFER_COUNT = 3;
+static const uint8_t BACKBUFFER_COUNT = 5;
 
 namespace Racoon {
 using namespace Microsoft::WRL;

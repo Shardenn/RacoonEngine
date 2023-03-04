@@ -9,7 +9,7 @@
 #include "UI.h"
 #include "Misc/Camera.h"
 
-#include <memory>
+#include <array>
 
 namespace Racoon {
 
@@ -40,6 +40,7 @@ namespace Racoon {
 		Camera m_Camera;
 
 		bool m_IsPaused{ false };
+
 	};
 
 }

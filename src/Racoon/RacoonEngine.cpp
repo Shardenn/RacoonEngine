@@ -1,5 +1,6 @@
 #include "stdafx.h"
 
+
 #include "RacoonEngine.h"
 
 #include "base/ShaderCompilerHelper.h"
@@ -10,6 +11,9 @@ namespace Racoon {
 RacoonEngine::RacoonEngine(LPCSTR name) :
     CAULDRON_DX12::FrameworkWindows(name)
 {
+    m_isCpuValidationLayerEnabled = false;
+    m_isGpuValidationLayerEnabled = false;
+    m_stablePowerState = false;
 }
 
 void RacoonEngine::OnParseCommandLine(LPSTR lpCmdLine, uint32_t* pWidth, uint32_t* pHeight)
@@ -35,6 +39,8 @@ void RacoonEngine::OnCreate()
     m_Camera.LookAt({ 0, 0, 5, 0 }, { 0, 0, 0, 0 });
 
     m_Timer.Reset();
+
+    m_UIState.FrameMillisec.fill(0);
 }
 
 void RacoonEngine::OnDestroy()
@@ -108,11 +114,9 @@ void RacoonEngine::OnRender()
 
     OnUpdate();
     m_Renderer->OnRender(&m_swapChain, m_Camera, m_Timer);
-    
-    ImGui::EndFrame();
 
-    CalculateFrameStats();
     EndFrame();
+    CalculateFrameStats();
 }
 
 bool RacoonEngine::OnEvent(MSG msg)
@@ -162,7 +166,12 @@ void RacoonEngine::CalculateFrameStats()
 
         FrameCount = 0;
         TimeElapsed += m_UIState.StatsUpdateFrequency;
+
+        m_UIState.FrameMillisec[m_UIState.CurrentFrameMsIndex++] = mspf;
+        if (m_UIState.CurrentFrameMsIndex >= m_UIState.FrameratesGraphValues)
+            m_UIState.CurrentFrameMsIndex = 0;
     }
+
 }
 
 }

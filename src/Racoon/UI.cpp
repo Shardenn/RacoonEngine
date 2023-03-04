@@ -40,6 +40,26 @@ void RacoonEngine::BuildUI()
                 ImGui::Text("CPU: %s", m_systemInfo.mCPUName.c_str());
             }
         }
+
+        // FPS graph
+        //{
+        //    ImGui::Begin("MS per frame, less is better");
+        //    ImGui::PlotLines("##Line", m_UIState.FrameMillisec.data(), 
+        //        m_UIState.FrameMillisec.size(), 0, 0, 0, 10, ImVec2(0, 320));
+        //    // Draw the vertical line
+        //        // Get the graph bounds
+        //    ImVec2 graphBoundsMin = ImGui::GetItemRectMin();
+        //    ImVec2 graphBoundsMax = ImGui::GetItemRectMax();
+        //
+        //    float x = static_cast<float>(m_UIState.CurrentFrameMsIndex) / m_UIState.FrameMillisec.size();
+        //    ImGui::GetWindowDrawList()->AddLine(
+        //        ImVec2(graphBoundsMin.x + x * (graphBoundsMax.x - graphBoundsMin.x), graphBoundsMin.y),
+        //        ImVec2(graphBoundsMin.x + x * (graphBoundsMax.x - graphBoundsMin.x), graphBoundsMax.y),
+        //        ImGui::GetColorU32(ImGuiCol_PlotLines),
+        //        1.0f);
+        //    ImGui::End();
+        //}
+
         ImGui::End();
     }
 }

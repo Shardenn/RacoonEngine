@@ -33,7 +33,7 @@ void Renderer::OnCreate(Device* pDevice, SwapChain* pSwapChain)
 
     m_ResourceViewHeaps.AllocDSVDescriptor(1, &m_DepthDSV);
 
-    const uint32_t uploadHeapMemSize = 1000 * 1024 * 1024;
+    const uint32_t uploadHeapMemSize = 2000 * 1024 * 1024;
     const uint32_t constantBufferMemSize = 200 * 1024 * 1024;
     m_DynamicBufferRing.OnCreate(pDevice, BACKBUFFER_COUNT, constantBufferMemSize, &m_ResourceViewHeaps);
     m_UploadHeap.OnCreate(pDevice, uploadHeapMemSize);
@@ -79,10 +79,8 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTime
     m_DynamicBufferRing.OnBeginFrame();
     
     ID3D12GraphicsCommandList2* CmdList = m_CommandListRing.GetNewCommandList();
-    
-    auto CurrentBackBufferRT = pSwapChain->GetCurrentBackBufferResource();
 
-    CmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBufferRT,
+    CmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pSwapChain->GetCurrentBackBufferResource(),
         D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     Clear(pSwapChain, CmdList);
@@ -103,8 +101,10 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTime
     CmdList->SetPipelineState(m_PipelineState);
 
     CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+
     // PER OBJECT
-    for (auto Object : m_Objects)
+    for (auto& Object : m_Objects)
     {
         // Set per frame constants
         PerObject perObject;
@@ -121,18 +121,15 @@ void Renderer::OnRender(SwapChain* pSwapChain, const Camera& Cam, const GameTime
             Object->StartIndexLocation, Object->BaseVertexLocation, 0);
     }
     // PER OBJECT FINISHED
-
+    // 
     // Draw UI
     m_ImGUIHelper.Draw(CmdList);
-
     // Switch backbuffer
-    CmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBufferRT,
+    CmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pSwapChain->GetCurrentBackBufferResource(),
         D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
     ThrowIfFailed(CmdList->Close());
     ID3D12CommandList* CmdListLists[] = { CmdList };
     m_pDevice->GetGraphicsQueue()->ExecuteCommandLists(1, CmdListLists);
-    //pSwapChain->WaitForSwapChain();
 }
 
 void Renderer::Clear(SwapChain* pSwapChain, ID3D12GraphicsCommandList2* CmdList)
